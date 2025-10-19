@@ -1,33 +1,24 @@
 # Expo Notification Content Extension Plugin
 
-Local Expo config plugin for iOS Notification Content Extension (NCE) - provides custom UI for expanded push notifications.
+An Expo config plugin that adds iOS Notification Content Extension support, enabling custom UI for expanded push notifications.
 
 ## What It Does
 
-This plugin adds an iOS Notification Content Extension to your app that displays custom-styled notification UI when users long-press/expand a notification. It works independently or alongside the NSE plugin.
+This plugin automatically configures an iOS Notification Content Extension in your Expo app. When users long-press a notification, they see a custom-styled UI instead of the default iOS notification view.
 
-## Installation Status
+## Features
 
-✅ **Plugin is installed and configured**
+- Custom notification UI with title, body text, and image support
+- Works with Expo's managed workflow (CNG)
+- Compatible with EAS Build
+- Can coexist with Notification Service Extension (NSE) plugins
+- Automatic provisioning and code signing via EAS
 
-## Project Structure
+## Installation
 
-```
-plugins/expo-notification-content-extension-plugin/
-├── app.plugin.js                                   # Main entry point
-├── withContentExtension.js                         # Core plugin logic
-├── constants.js                                     # Configuration constants
-├── utils.js                                         # Helper utilities
-├── package.json                                     # Plugin metadata
-└── ios/                                            # Native iOS files
-    ├── NotificationViewController.h
-    ├── NotificationViewController.m                # Custom UI logic
-    ├── MainInterface.storyboard                    # UI layout
-    ├── NotificationContentExtension-Info.plist     # Extension configuration
-    └── NotificationContentExtension.entitlements   # Permissions
-```
+1. Copy this plugin to your project (e.g., `plugins/expo-notification-content-extension-plugin/`)
 
-## Configuration (app.json)
+2. Add to your `app.json`:
 
 ```json
 {
@@ -36,292 +27,114 @@ plugins/expo-notification-content-extension-plugin/
       "./plugins/expo-notification-content-extension-plugin",
       {
         "mode": "production",
-        "categoryIdentifier": "CGMSIM_NOTIFICATION",
-        "contentSizeRatio": 0.5
+        "categoryIdentifier": "YOUR_CATEGORY_ID"
       }
     ]
   ]
 }
 ```
 
-### Options
+3. Run prebuild:
 
-- **mode** (required): `"development"` or `"production"` - sets APS environment
-- **categoryIdentifier** (optional): Category ID for notifications (default: `"CGMSIM_NOTIFICATION"`)
-- **contentSizeRatio** (optional): Height/Width ratio for extension UI (default: `0.5`)
+```bash
+npx expo prebuild --clean
+```
+
+## Configuration Options
+
+- **mode** (required): `"development"` or `"production"` - sets APNs environment
+- **categoryIdentifier** (optional): Category ID for your notifications (default: `"CGMSIM_NOTIFICATION"`)
+- **contentSizeRatio** (optional): Height-to-width ratio for the extension UI (default: `0.5`)
 - **devTeam** (optional): Apple Developer Team ID (usually auto-managed by EAS)
-- **iPhoneDeploymentTarget** (optional): iOS deployment target (default: `"13.0"`)
+- **iPhoneDeploymentTarget** (optional): Minimum iOS version (default: `"13.0"`)
 
-## How It Works
+## Usage
 
-### 1. Continuous Native Generation (CNG)
+### Notification Payload
 
-When you run `npx expo prebuild`, the plugin:
-- Creates `ios/NotificationContentExtension/` directory
-- Copies native files (ViewController, storyboard, plists)
-- Adds new Xcode target `NotificationContentExtension`
-- Configures bundle identifier: `cgmsim.app.NotificationContentExtension`
-- Sets up app groups: `group.cgmsim.app.nce`
-- Configures automatic code signing
-
-### 2. EAS Managed Credentials
-
-EAS automatically handles:
-- Creates App ID: `cgmsim.app.NotificationContentExtension`
-- Generates provisioning profile for extension
-- Manages signing certificates
-- Configures entitlements
-
-**No manual certificate management needed!**
-
-### 3. Notification Flow
-
-```
-Server sends push notification with category → iOS delivers notification
-                                                         ↓
-                                  User long-presses notification
-                                                         ↓
-                              NCE shows custom styled UI
-```
-
-## Notification Payload Format
-
-Your push notification payload **MUST** include the category identifier:
+Your push notifications must include the `category` field matching your configuration:
 
 ```json
 {
   "aps": {
     "alert": {
-      "title": "Blood Glucose Alert",
-      "body": "Your glucose is 180 mg/dL"
+      "title": "Notification Title",
+      "body": "Notification message"
     },
-    "category": "CGMSIM_NOTIFICATION",
+    "category": "YOUR_CATEGORY_ID",
     "mutable-content": 1
   }
 }
 ```
 
-**Critical**: The `category` field must match the `categoryIdentifier` in your plugin configuration!
+### With Images
 
-### With Images (Using NSE)
-
-If you also use the NSE plugin:
+To display images, include an attachment (often added via NSE plugin):
 
 ```json
 {
   "aps": {
     "alert": {
-      "title": "Blood Glucose Alert",
-      "body": "Your glucose is 180 mg/dL"
+      "title": "Notification Title",
+      "body": "Notification message"
     },
-    "category": "CGMSIM_NOTIFICATION",
+    "category": "YOUR_CATEGORY_ID",
     "mutable-content": 1
   },
-  "image-url": "https://example.com/chart.png"
+  "image-url": "https://example.com/image.png"
 }
 ```
 
 ## Customization
 
-### Styling (NotificationViewController.m:10-27)
+The plugin includes default styling with a light gray background, bold title, and rounded image corners. To customize:
 
-Current styling:
-- Background: Light gray (`rgb(242, 242, 242)`)
-- Title: Bold, 17pt, black
-- Body: Regular, 15pt, dark gray
-- Image: Rounded corners (8pt), aspect fit
-
-To customize, edit:
-```
-/plugins/expo-notification-content-extension-plugin/ios/NotificationViewController.m
-```
-
-Then run `npx expo prebuild --clean` to apply changes.
-
-### Layout (MainInterface.storyboard)
-
-Current layout:
-- 16pt margins
-- Title → Body → Image (vertical stack)
-- 8pt spacing between elements
-- Image hidden if no attachment
-
-To modify layout, edit the storyboard file or replace with programmatic UI.
-
-## Coexistence with NSE Plugin
-
-**Both plugins can work together!**
-
-```json
-{
-  "plugins": [
-    [
-      "expo-notification-service-extension-plugin",
-      {
-        "mode": "production",
-        "iosNSEFilePath": "./assets/NotificationService.m"
-      }
-    ],
-    [
-      "./plugins/expo-notification-content-extension-plugin",
-      {
-        "mode": "production",
-        "categoryIdentifier": "CGMSIM_NOTIFICATION",
-        "contentSizeRatio": 0.5
-      }
-    ]
-  ]
-}
-```
-
-**Workflow**:
-1. NSE intercepts notification → downloads image → attaches it
-2. Notification delivered with attachment
-3. User expands → NCE shows custom UI with styled content + image
-
-**Note**: Use different app group identifiers if running both:
-- NSE: `group.cgmsim.app.nse`
-- NCE: `group.cgmsim.app.nce`
+1. Edit `ios/NotificationViewController.m` for styling changes
+2. Modify `ios/MainInterface.storyboard` for layout changes
+3. Run `npx expo prebuild --clean` to apply
 
 ## Building
 
 ### Local Development
-
 ```bash
-# Clean and rebuild native code
 npx expo prebuild --clean
-
-# Build iOS app
 npx expo run:ios
 ```
 
-### EAS Build
-
+### Production (EAS)
 ```bash
-# Build for production
 eas build --platform ios --profile production
 ```
 
-EAS automatically provisions the extension target.
+## How It Works
 
-## Testing
+When you run `npx expo prebuild`, the plugin:
+1. Creates the `ios/NotificationContentExtension/` directory
+2. Adds native files (ViewController, storyboard, Info.plist)
+3. Configures a new Xcode target with proper bundle identifier
+4. Sets up app groups and entitlements
+5. Configures automatic code signing
 
-### 1. Test Notification (Without Custom UI)
-
-Send a notification **without** the category - it will display normally:
-
-```json
-{
-  "aps": {
-    "alert": {
-      "title": "Test",
-      "body": "Normal notification"
-    }
-  }
-}
-```
-
-### 2. Test Notification (With Custom UI)
-
-Send a notification **with** the category:
-
-```json
-{
-  "aps": {
-    "alert": {
-      "title": "Blood Glucose Alert",
-      "body": "Your glucose is 180 mg/dL"
-    },
-    "category": "CGMSIM_NOTIFICATION"
-  }
-}
-```
-
-Long-press the notification → Custom UI appears!
-
-### 3. Debugging
-
-If custom UI doesn't appear:
-- ✅ Verify `category` matches plugin config
-- ✅ Check Xcode for extension build errors
-- ✅ Ensure notification isn't silent (`content-available: 1` only)
-- ✅ Confirm extension target builds successfully
-- ✅ Check extension's Info.plist has correct category
-
-View extension logs:
-```bash
-# In Xcode: Product → Scheme → NotificationContentExtension
-# Run the extension target, then send notification
-```
-
-## Verification
-
-After running `npx expo prebuild`, verify:
-
-```bash
-# Check extension directory exists
-ls -la ios/NotificationContentExtension/
-
-# Check bundle identifier
-grep "PRODUCT_BUNDLE_IDENTIFIER" ios/cgmsimapp.xcodeproj/project.pbxproj | grep NotificationContentExtension
-
-# Check category in Info.plist
-cat ios/NotificationContentExtension/NotificationContentExtension-Info.plist | grep -A 1 "UNNotificationExtensionCategory"
-
-# Check app group
-cat ios/cgmsimapp/cgmsimapp.entitlements | grep -A 3 "application-groups"
-```
-
-Expected values:
-- Bundle ID: `cgmsim.app.NotificationContentExtension`
-- Category: `CGMSIM_NOTIFICATION`
-- App Group: `group.cgmsim.app.nce`
+EAS Build automatically handles provisioning profiles and certificates.
 
 ## Troubleshooting
 
-### "No matching provisioning profile found"
-
-EAS should auto-create this. If it fails:
-1. Ensure `ios.bundleIdentifier` is set in app.json
-2. Run `eas build --platform ios` (not local build)
-3. Check EAS dashboard for credential status
-
-### Extension doesn't appear in Xcode
-
-Run: `npx expo prebuild --clean`
-
 ### Custom UI doesn't show
+- Verify the `category` field in your notification matches `categoryIdentifier` in your config
+- Ensure `mutable-content: 1` is set in the notification payload
+- Check Xcode logs for extension build errors
 
-1. Verify notification payload includes `"category": "CGMSIM_NOTIFICATION"`
-2. Check that `categoryIdentifier` in app.json matches
-3. Ensure `mutable-content: 1` is set (for iOS 10+)
-
-### Build errors after modifying plugin
-
+### Build errors
 ```bash
-# Clean everything
 rm -rf ios/
 npx expo prebuild --clean
 ```
 
-## Updating the Plugin
+### Provisioning issues
+- Ensure `ios.bundleIdentifier` is set in `app.json`
+- Use EAS Build (not local builds) for automatic provisioning
+- Check EAS dashboard for credential status
 
-After modifying plugin files:
+## License
 
-1. Clean native code: `rm -rf ios/`
-2. Rebuild: `npx expo prebuild --clean`
-3. Test locally: `npx expo run:ios`
-4. Build with EAS: `eas build --platform ios`
-
-## Support
-
-For issues:
-1. Check Xcode build logs
-2. Verify notification payload format
-3. Ensure category identifier matches
-4. Review EAS build logs for provisioning issues
-
----
-
-**Created**: October 2025
-**Tested**: Expo SDK 54, iOS 13+
+MIT

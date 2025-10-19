@@ -1,5 +1,5 @@
 #!/bin/bash
 
 git add .
-git commit -m "initial commit"
+git commit -m "edit readme"
 git push -u origin main
