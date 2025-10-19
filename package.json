@@ -1,0 +1,15 @@
+{
+  "name": "expo-notification-content-extension-plugin",
+  "version": "1.0.0",
+  "description": "Local Expo config plugin for iOS Notification Content Extension",
+  "main": "app.plugin.js",
+  "keywords": [
+    "expo",
+    "push",
+    "notifications",
+    "notification content extension",
+    "nce"
+  ],
+  "author": "cgmsim-app",
+  "license": "MIT"
+}
