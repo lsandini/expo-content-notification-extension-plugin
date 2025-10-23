@@ -131,6 +131,25 @@ const withContentExtensionXcodeProject = (config, props) => {
         const allFiles = [...NCE_SOURCE_FILES, ...NCE_RESOURCE_FILES, ...NCE_EXT_FILES];
         const extGroup = xcodeProject.addPbxGroup(allFiles, NCE_TARGET_NAME, NCE_TARGET_NAME);
 
+        // CRITICAL FIX: Set correct storyboard file type immediately after adding files
+        // This must happen before any build phases are created
+        const pbxFileReferences = xcodeProject.hash.project.objects['PBXFileReference'];
+        Object.keys(pbxFileReferences).forEach(function (key) {
+            const fileRef = pbxFileReferences[key];
+            if (fileRef && typeof fileRef === 'object') {
+                const fileName = fileRef.name || fileRef.path || '';
+                const normalizedName = fileName.replace(/["']/g, '');
+                if (normalizedName === 'MainInterface.storyboard') {
+                    // Set correct file type for storyboard compilation
+                    fileRef.lastKnownFileType = 'file.storyboard';
+                    fileRef.includeInIndex = 0;
+                    // Remove any conflicting properties
+                    delete fileRef.explicitFileType;
+                    console.log(`[NCE Plugin] ✓ Fixed storyboard file type for MainInterface.storyboard`);
+                }
+            }
+        });
+
         // Add the new PBXGroup to the top level group
         const groups = xcodeProject.hash.project.objects["PBXGroup"];
         Object.keys(groups).forEach(function (key) {
@@ -167,12 +186,23 @@ const withContentExtensionXcodeProject = (config, props) => {
             nceTarget.uuid
         );
 
-        xcodeProject.addBuildPhase(
+        // Add UserNotifications and UserNotificationsUI frameworks
+        const frameworksBuildPhase = xcodeProject.addBuildPhase(
             [],
             "PBXFrameworksBuildPhase",
             "Frameworks",
             nceTarget.uuid
         );
+
+        // Add required frameworks for notification content extension
+        const userNotificationsFramework = xcodeProject.addFramework('UserNotifications.framework', {
+            target: nceTarget.uuid,
+            link: true
+        });
+        const userNotificationsUIFramework = xcodeProject.addFramework('UserNotificationsUI.framework', {
+            target: nceTarget.uuid,
+            link: true
+        });
 
         // Configure build settings
         const configurations = xcodeProject.pbxXCBuildConfigurationSection();
@@ -181,7 +211,10 @@ const withContentExtensionXcodeProject = (config, props) => {
                 configurations[key].buildSettings.PRODUCT_NAME == `"${NCE_TARGET_NAME}"`) {
 
                 const buildSettingsObj = configurations[key].buildSettings;
-                buildSettingsObj.DEVELOPMENT_TEAM = props?.devTeam;
+                // Only set DEVELOPMENT_TEAM if explicitly provided, otherwise let Xcode auto-select
+                if (props?.devTeam && props.devTeam !== 'undefined') {
+                    buildSettingsObj.DEVELOPMENT_TEAM = props.devTeam;
+                }
                 buildSettingsObj.IPHONEOS_DEPLOYMENT_TARGET = props?.iPhoneDeploymentTarget || IPHONEOS_DEPLOYMENT_TARGET;
                 buildSettingsObj.TARGETED_DEVICE_FAMILY = TARGETED_DEVICE_FAMILY;
                 // No entitlements needed for simple content extension
@@ -189,9 +222,11 @@ const withContentExtensionXcodeProject = (config, props) => {
             }
         }
 
-        // Add development teams
-        xcodeProject.addTargetAttribute("DevelopmentTeam", props?.devTeam, nceTarget);
-        xcodeProject.addTargetAttribute("DevelopmentTeam", props?.devTeam);
+        // Add development teams only if explicitly provided
+        if (props?.devTeam && props.devTeam !== 'undefined') {
+            xcodeProject.addTargetAttribute("DevelopmentTeam", props.devTeam, nceTarget);
+            xcodeProject.addTargetAttribute("DevelopmentTeam", props.devTeam);
+        }
 
         return newConfig;
     });

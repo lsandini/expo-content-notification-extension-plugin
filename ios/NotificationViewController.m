@@ -8,11 +8,28 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    // Configure view styling
-    self.view.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.95 alpha:1.0];
+    // DEBUGGING: Check if IBOutlets are connected
+    NSLog(@"========================================");
+    NSLog(@"[NCE] viewDidLoad called!");
+    NSLog(@"[NCE] titleLabel: %@", self.titleLabel ? @"CONNECTED" : @"NIL!!!");
+    NSLog(@"[NCE] bodyLabel: %@", self.bodyLabel ? @"CONNECTED" : @"NIL!!!");
+    NSLog(@"[NCE] imageView: %@", self.attachmentImageView ? @"CONNECTED" : @"NIL!!!");
+    NSLog(@"========================================");
 
-    // Configure title label styling
-    if (self.titleLabel) {
+    // Configure view styling - BRIGHT PINK FOR TESTING
+    self.view.backgroundColor = [UIColor colorWithRed:1.0 green:0.0 blue:1.0 alpha:1.0]; // Bright magenta
+
+    // If outlets are nil, create labels manually as a fallback
+    if (!self.titleLabel) {
+        NSLog(@"[NCE] WARNING: titleLabel outlet not connected! Creating manually...");
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(16, 16, self.view.bounds.size.width - 32, 50)];
+        label.text = @"MANUAL TITLE";
+        label.font = [UIFont boldSystemFontOfSize:30];
+        label.textColor = [UIColor yellowColor];
+        label.numberOfLines = 0;
+        [self.view addSubview:label];
+    } else {
+        // Configure title label styling
         self.titleLabel.font = [UIFont boldSystemFontOfSize:17];
         self.titleLabel.textColor = [UIColor colorWithRed:1.0 green:0.23137254900000001 blue:0.18823529410000001 alpha:1.0]; // Red
         self.titleLabel.numberOfLines = 0;
@@ -37,14 +54,18 @@
     // Get notification content
     UNNotificationContent *content = notification.request.content;
 
-    // Set title
+    // Set title (force color on every notification)
     if (self.titleLabel) {
         self.titleLabel.text = content.title ?: @"";
+        self.titleLabel.textColor = [UIColor colorWithRed:1.0 green:0.0 blue:1.0 alpha:1.0]; // BRIGHT MAGENTA FOR TESTING
+        self.titleLabel.font = [UIFont boldSystemFontOfSize:30]; // HUGE font for testing
     }
 
-    // Set body
+    // Set body (force color on every notification)
     if (self.bodyLabel) {
         self.bodyLabel.text = content.body ?: @"";
+        self.bodyLabel.textColor = [UIColor colorWithRed:0.0 green:0.47843137250000001 blue:1.0 alpha:1.0]; // Blue
+        self.bodyLabel.font = [UIFont systemFontOfSize:15];
     }
 
     // Handle image attachment
