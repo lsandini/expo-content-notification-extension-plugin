@@ -1,6 +1,5 @@
 const {
     withDangerousMod,
-    withEntitlementsPlist,
     withXcodeProject,
 } = require('@expo/config-plugins');
 const path = require('path');
@@ -27,34 +26,6 @@ const {
     replaceInFile,
     getEasManagedCredentialsConfigExtra
 } = require('./utils');
-
-/**
- * Add App Group permission to main app entitlements
- * NOTE: Disabled for simple NCE - only needed if extension shares data with main app
- */
-const withAppGroupPermissions = (config) => {
-    // App Groups not needed for simple content display
-    // Uncomment if you need to share data between extension and main app
-    /*
-    const APP_GROUP_KEY = "com.apple.security.application-groups";
-
-    return withEntitlementsPlist(config, newConfig => {
-        if (!Array.isArray(newConfig.modResults[APP_GROUP_KEY])) {
-            newConfig.modResults[APP_GROUP_KEY] = [];
-        }
-
-        const modResultsArray = newConfig.modResults[APP_GROUP_KEY];
-        const entitlement = `group.${newConfig.ios?.bundleIdentifier || ""}.nce`;
-
-        if (modResultsArray.indexOf(entitlement) === -1) {
-            modResultsArray.push(entitlement);
-        }
-
-        return newConfig;
-    });
-    */
-    return config;
-};
 
 /**
  * Copy extension files and configure them
@@ -93,8 +64,7 @@ const withContentExtensionFiles = (config, props) => {
                 await copyFile(sourcePath, targetPath);
             }
 
-            // Skip entitlements file - not needed for simple content display
-            // Delete the entitlements file as it's not required
+            // Remove entitlements file if it exists (not required for this extension)
             const entitlementsPath = path.join(extensionPath, `${NCE_TARGET_NAME}.entitlements`);
             if (fs.existsSync(entitlementsPath)) {
                 fs.unlinkSync(entitlementsPath);
@@ -131,8 +101,7 @@ const withContentExtensionXcodeProject = (config, props) => {
         const allFiles = [...NCE_SOURCE_FILES, ...NCE_RESOURCE_FILES, ...NCE_EXT_FILES];
         const extGroup = xcodeProject.addPbxGroup(allFiles, NCE_TARGET_NAME, NCE_TARGET_NAME);
 
-        // CRITICAL FIX: Set correct storyboard file type immediately after adding files
-        // This must happen before any build phases are created
+        // Set correct storyboard file type for compilation
         const pbxFileReferences = xcodeProject.hash.project.objects['PBXFileReference'];
         Object.keys(pbxFileReferences).forEach(function (key) {
             const fileRef = pbxFileReferences[key];
@@ -140,12 +109,9 @@ const withContentExtensionXcodeProject = (config, props) => {
                 const fileName = fileRef.name || fileRef.path || '';
                 const normalizedName = fileName.replace(/["']/g, '');
                 if (normalizedName === 'MainInterface.storyboard') {
-                    // Set correct file type for storyboard compilation
                     fileRef.lastKnownFileType = 'file.storyboard';
                     fileRef.includeInIndex = 0;
-                    // Remove any conflicting properties
                     delete fileRef.explicitFileType;
-                    console.log(`[NCE Plugin] ✓ Fixed storyboard file type for MainInterface.storyboard`);
                 }
             }
         });
@@ -158,7 +124,7 @@ const withContentExtensionXcodeProject = (config, props) => {
             }
         });
 
-        // WORK AROUND for codeProject.addTarget BUG
+        // Initialize required Xcode project objects
         const projObjects = xcodeProject.hash.project.objects;
         projObjects['PBXTargetDependency'] = projObjects['PBXTargetDependency'] || {};
         projObjects['PBXContainerItemProxy'] = projObjects['PBXContainerItemProxy'] || {};
@@ -211,13 +177,11 @@ const withContentExtensionXcodeProject = (config, props) => {
                 configurations[key].buildSettings.PRODUCT_NAME == `"${NCE_TARGET_NAME}"`) {
 
                 const buildSettingsObj = configurations[key].buildSettings;
-                // Only set DEVELOPMENT_TEAM if explicitly provided, otherwise let Xcode auto-select
                 if (props?.devTeam && props.devTeam !== 'undefined') {
                     buildSettingsObj.DEVELOPMENT_TEAM = props.devTeam;
                 }
                 buildSettingsObj.IPHONEOS_DEPLOYMENT_TARGET = props?.iPhoneDeploymentTarget || IPHONEOS_DEPLOYMENT_TARGET;
                 buildSettingsObj.TARGETED_DEVICE_FAMILY = TARGETED_DEVICE_FAMILY;
-                // No entitlements needed for simple content extension
                 buildSettingsObj.CODE_SIGN_STYLE = "Automatic";
             }
         }
@@ -257,7 +221,6 @@ const withContentExtension = (config, props = {}) => {
     }
 
     // Apply all modifications
-    config = withAppGroupPermissions(config);
     config = withContentExtensionFiles(config, props);
     config = withContentExtensionXcodeProject(config, props);
     config = withEasManagedCredentials(config);
